@@ -1,0 +1,13 @@
+.pp-holder {
+  width: 105px;
+  height: 120px;
+  overflow: hidden;
+}
+
+.pp-holder img {
+  transition: all 0.2s ease-in-out;
+}
+
+.pp-holder:hover img {
+  transform: scale(1.1);
+}
