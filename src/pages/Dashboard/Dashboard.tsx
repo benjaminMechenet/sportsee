@@ -11,27 +11,13 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import "./Dashboard.css";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-  Legend,
-  ComposedChart,
-  Line,
-  PieChart,
-  Pie,
-  type PieSectorShapeProps,
-  Sector,
-  type TooltipContentProps,
-} from "recharts";
-import {
   fetchCurrentWeekOffset,
   getWeeksBounds,
   groupDataByWeek,
 } from "../../services/groupDataService";
+import GoalChart from "../../components/GoalChart/GoalChart";
+import DistanceChart from "../../components/DistanceChart/DistanceChart";
+import BPMChart from "../../components/BPMChart/BPMChart";
 
 function Dashboard() {
   const { user } = useUser();
@@ -146,45 +132,6 @@ function Dashboard() {
     fetchSelected();
   }, [auth.token, selectedWeekOffset]);
 
-  const COLORS = ["#0B23F4", "#B6BDFC"];
-  const GoalPie = (props: PieSectorShapeProps) => {
-    return <Sector {...props} fill={COLORS[props.index % COLORS.length]} />;
-  };
-
-  const WeeklyTooltip = ({ active, payload }: TooltipContentProps) => {
-    const isVisible = active && payload && payload.length;
-    if (payload[0]?.payload?.dates?.start) {
-      return (
-        <div
-          className="custom-tooltip"
-          style={{ visibility: isVisible ? "visible" : "hidden" }}
-        >
-          {isVisible && (
-            <>
-              <p className="mb-0">
-                Du{" "}
-                {new Date(payload[0].payload.dates.start)
-                  .toLocaleDateString("fr-FR", {
-                    day: "2-digit",
-                    month: "2-digit",
-                  })
-                  .replace("/", ".")}{" "}
-                au{" "}
-                {new Date(payload[0].payload.dates.end)
-                  .toLocaleDateString("fr-FR", {
-                    day: "2-digit",
-                    month: "2-digit",
-                  })
-                  .replace("/", ".")}{" "}
-              </p>
-              <p className="fs-5 mb-0">{payload[0].value} km</p>
-            </>
-          )}
-        </div>
-      );
-    }
-  };
-
   return (
     <div className="d-flex flex-column justify-content-between gap-5">
       <Header />
@@ -232,23 +179,7 @@ function Dashboard() {
               />
             </div>
             <div className="w-100">
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart responsive data={weeksData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis tickFormatter={(index) => `S${index + 1}`} />
-                  <YAxis dataKey="distance" width={20} />
-                  <Tooltip cursor={false} content={WeeklyTooltip} />
-                  <Legend />
-                  <Bar
-                    dataKey="distance"
-                    label={({ name, value }) => `${value} ${name}`}
-                    barSize={20}
-                    fill="#B6BDFC"
-                    activeBar={{ fill: "#0B23F4" }}
-                    radius={[10, 10, 10, 10]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              <DistanceChart weeksData={weeksData} />
             </div>
           </div>
 
@@ -270,37 +201,7 @@ function Dashboard() {
               />
             </div>
             <div className="w-100">
-              <ResponsiveContainer width="100%" height={400}>
-                <ComposedChart className="btm-chart" data={selectedWeek}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis />
-                  <YAxis width={30} domain={[130, 190]} />
-                  <Legend />
-                  <Bar
-                    dataKey="heartRate.min"
-                    fill="#fcc1b6"
-                    radius={[10, 10, 10, 10]}
-                    barSize={12}
-                    name="Min BPM"
-                  />
-                  <Bar
-                    dataKey="heartRate.max"
-                    fill="#f4320b"
-                    radius={[10, 10, 10, 10]}
-                    barSize={12}
-                    name="Max BPM"
-                  />
-                  <Line
-                    isAnimationActive={false}
-                    name="Moyenne"
-                    type="monotone"
-                    dataKey="heartRate.average"
-                    stroke="#0b23f4"
-                    strokeWidth={3}
-                    dot={{ r: 4 }}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
+              <BPMChart selectedWeek={selectedWeek} />
             </div>
           </div>
         </div>
@@ -323,23 +224,7 @@ function Dashboard() {
             <p>Courses hebdomadaires réalisées</p>
 
             <div className="mt-3 m-auto w-100 h-300">
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie
-                    startAngle={180}
-                    endAngle={540}
-                    shape={GoalPie}
-                    label={({ name, value }) => `${value} ${name}`}
-                    data={[
-                      { name: "réalisé(s)", value: user?.goal },
-                      { name: "restant(s)", value: 6 - (user?.goal ?? 0) },
-                    ]}
-                    innerRadius={70}
-                    outerRadius={120}
-                    dataKey="value"
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              <GoalChart />
             </div>
           </div>
           <div className="d-flex flex-column gap-4 flex-grow-1">

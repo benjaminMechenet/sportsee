@@ -2,10 +2,6 @@ section {
   background-color: #f2f3ff;
 }
 
-.aspect-1 {
-  aspect-ratio: 1/1;
-}
-
 .h-300 {
   height: 300px;
 }
@@ -15,17 +11,6 @@ section {
 .recharts-wrapper:focus-visible {
   outline: none !important;
   transition: all 0.2s ease-in-out;
-}
-
-.custom-tooltip {
-  background-color: rgba(0, 0, 0, 0.9);
-  color: white;
-  padding: 15px;
-  border-radius: 10px;
-}
-
-.bpm-chart:hover .recharts-line path {
-  stroke: #0b23f4;
 }
 
 .fade-slide-up {
