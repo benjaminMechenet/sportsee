@@ -30,143 +30,59 @@ function formatDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export function getWeekBounds(dateInput: Date, weeksBack: number) {
-  const date = new Date(dateInput);
-
-  const day = date.getDay();
-
-  const diffToMonday = (day + 6) % 7;
-  const mondayThisWeek = new Date(date);
-  mondayThisWeek.setDate(date.getDate() - diffToMonday);
-  mondayThisWeek.setHours(0, 0, 0, 0);
-
-  const sundayThisWeek = new Date(mondayThisWeek);
-  sundayThisWeek.setDate(mondayThisWeek.getDate() + 6);
-  sundayThisWeek.setHours(23, 59, 59, 999);
-
-  const mondayWeeksAgo = new Date(mondayThisWeek);
-  mondayWeeksAgo.setDate(mondayThisWeek.getDate() - weeksBack * 7);
-  mondayWeeksAgo.setHours(0, 0, 0, 0);
-
-  return {
-    mondayWeeksAgo,
-    sundayThisWeek,
-  };
-}
-
-export function groupRecentWeek(data: UserActivity[]): WeekData[] {
+export function groupDataByWeek(
+  startDate: string,
+  endDate: string,
+  data: UserActivity[],
+): WeekData[] {
   const map = new Map<string, WeekData>();
 
-  data.forEach((item) => {
-    const date = parseLocalDate(item.date);
+  const start = getMonday(new Date(startDate));
+  const end = new Date(endDate);
+  const currentMonday = new Date(start);
 
-    const monday = getMonday(date);
+  while (currentMonday <= end) {
+    const monday = new Date(currentMonday);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
 
     const key = formatDate(monday);
 
-    if (!map.has(key)) {
-      map.set(key, {
-        name: `${formatDate(monday)} → ${formatDate(sunday)}`,
-        dates: {
-          start: formatDate(monday),
-          end: formatDate(sunday),
-        },
-        distance: 0,
-      });
-    }
+    map.set(key, {
+      name: `${formatDate(monday)} → ${formatDate(sunday)}`,
+      dates: {
+        start: formatDate(monday),
+        end: formatDate(sunday),
+      },
+      distance: 0,
+    });
 
-    map.get(key)!.distance += item.distance;
-  });
-
-  const sortedKeys = Array.from(map.keys()).sort();
-
-  const result: WeekData[] = sortedKeys.slice(-4).map((key) => map.get(key)!);
-
-  return result;
-}
-
-export function groupByWeek(data: UserActivity[]): WeekData[] {
-  const map = new Map<string, WeekData>();
+    currentMonday.setDate(currentMonday.getDate() + 7);
+  }
 
   data.forEach((item) => {
     const date = parseLocalDate(item.date);
-
     const monday = getMonday(date);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-
-    const key = formatDate(monday);
-
-    if (!map.has(key)) {
-      map.set(key, {
-        name: `${formatDate(monday)} → ${formatDate(sunday)}`,
-        dates: {
-          start: formatDate(monday),
-          end: formatDate(sunday),
-        },
-        distance: 0,
-      });
-    }
-
-    map.get(key)!.distance += item.distance;
-  });
-
-  const sortedKeys = Array.from(map.keys()).sort();
-
-  if (sortedKeys.length === 0) return [];
-
-  const firstMonday = parseLocalDate(sortedKeys[0]);
-
-  const today = new Date();
-  const currentMonday = getMonday(today);
-
-  const lastDataMonday = parseLocalDate(sortedKeys[sortedKeys.length - 1]);
-
-  const lastMonday =
-    currentMonday > lastDataMonday ? currentMonday : lastDataMonday;
-
-  const result: WeekData[] = [];
-
-  const current = new Date(firstMonday);
-
-  while (current <= lastMonday) {
-    const monday = new Date(current);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-
     const key = formatDate(monday);
 
     if (map.has(key)) {
-      result.push(map.get(key)!);
-    } else {
-      result.push({
-        name: `${formatDate(monday)} → ${formatDate(sunday)}`,
-        dates: {
-          start: formatDate(monday),
-          end: formatDate(sunday),
-        },
-        distance: 0,
-      });
+      map.get(key)!.distance += item.distance;
     }
+  });
 
-    current.setDate(current.getDate() + 7);
-  }
-
-  return result;
+  return Array.from(map.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, value]) => value);
 }
 
 export const fetchCurrentWeekOffset = async (token: string, offset: number) => {
-  const bounds = getWeekBounds(new Date(), offset);
+  const bounds = getWeeksBounds(offset, 1);
 
-  const startStr = new Intl.DateTimeFormat("fr-CA").format(
-    bounds.mondayWeeksAgo,
-  );
-  const endStr = new Intl.DateTimeFormat("fr-CA").format(bounds.sundayThisWeek);
+  const startStr = new Intl.DateTimeFormat("fr-CA").format(bounds.start);
+  const endStr = new Intl.DateTimeFormat("fr-CA").format(bounds.end);
   const rawActivities = await getUserActivity(token, startStr, endStr);
 
-  const monday = new Date(bounds.mondayWeeksAgo);
+  const monday = new Date(bounds.start);
   const expectedDates: string[] = [];
   for (let i = 0; i < 7; i++) {
     const date = new Date(monday);
@@ -194,3 +110,26 @@ export const fetchCurrentWeekOffset = async (token: string, offset: number) => {
 export const fetchCurrentWeek = async (token: string) => {
   return fetchCurrentWeekOffset(token, 0);
 };
+
+export function getWeeksBounds(offset: number, weeksNumber: number) {
+  const today = new Date();
+
+  const day = today.getDay();
+  const diff = (day + 6) % 7;
+
+  const currentMonday = new Date(today);
+  currentMonday.setDate(today.getDate() - diff);
+  currentMonday.setHours(0, 0, 0, 0);
+
+  const targetMonday = new Date(currentMonday);
+  targetMonday.setDate(currentMonday.getDate() - offset * 7);
+
+  const start = new Date(targetMonday);
+  start.setDate(targetMonday.getDate() - (weeksNumber - 1) * 7);
+
+  const end = new Date(targetMonday);
+  end.setDate(targetMonday.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}

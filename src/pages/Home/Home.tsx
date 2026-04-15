@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getUserInfo, loginRequest } from "../../services/authService";
+import {
+  getUserInfo,
+  loginRequest,
+  type LoginResponse,
+} from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 import { useUser } from "../../context/UserContext";
 import "./Home.css";
@@ -8,19 +12,29 @@ import "./Home.css";
 function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const { login } = useAuth();
   const { setUser } = useUser();
   const navigate = useNavigate();
 
   const handleLogin = async () => {
     try {
-      const response = await loginRequest(email, password);
-      login(response.token);
+      let user: LoginResponse;
 
-      const response2 = await getUserInfo(response.token);
-      setUser(response2);
+      try {
+        const response = await loginRequest(email, password);
+        login(response.token);
+        user = response;
 
-      navigate("/dashboard");
+        const response2 = await getUserInfo(user.token);
+        setUser(response2);
+
+        navigate("/dashboard");
+      } catch (error) {
+        if (error instanceof Error) {
+          setError(error.message);
+        }
+      }
     } catch (err) {
       alert("Erreur de connexion : " + err);
     }
@@ -56,6 +70,7 @@ function Home() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
+          <div className="mb-4 text-danger">{error}</div>
           <button
             className="btn btn-primary py-2 rounded-3"
             onClick={handleLogin}

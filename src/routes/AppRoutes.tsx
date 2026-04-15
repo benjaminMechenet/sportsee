@@ -4,10 +4,18 @@ import Dashboard from "../pages/Dashboard/Dashboard";
 import PrivateRoute from "./PrivateRoute";
 import Profile from "../pages/Profile/Profile";
 import Error404 from "../pages/Error404/Error404";
+import PublicRoute from "./PublicRoute";
 
 export const AppRoutes = () => (
   <Routes>
-    <Route path="/" element={<Home />} />
+    <Route
+      path="/"
+      element={
+        <PublicRoute>
+          <Home />
+        </PublicRoute>
+      }
+    />
 
     <Route
       path="/dashboard"

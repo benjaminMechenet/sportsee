@@ -29,8 +29,8 @@ import {
 } from "recharts";
 import {
   fetchCurrentWeekOffset,
-  getWeekBounds,
-  groupByWeek,
+  getWeeksBounds,
+  groupDataByWeek,
 } from "../../services/groupDataService";
 
 function Dashboard() {
@@ -39,26 +39,27 @@ function Dashboard() {
 
   const [weeksData, setWeeksData] = useState<WeekData[]>([]);
   const [currentWeek, setCurrentWeek] = useState<UserActivity[]>([]);
+  const [selectedWeek, setSelectedWeek] = useState<UserActivity[]>([]);
 
   const [multiWeekBaseOffset, setMultiWeekBaseOffset] = useState(0);
-  const [currentOffset, setCurrentOffset] = useState(0);
+
+  const [selectedWeekOffset, setSelectedWeekOffset] = useState(0);
 
   const intl = new Intl.DateTimeFormat("fr-CA");
 
-  const multiBounds = getWeekBounds(new Date(), multiWeekBaseOffset + 3);
-  const currentBounds = getWeekBounds(new Date(), currentOffset);
+  const multiBounds = getWeeksBounds(multiWeekBaseOffset, 4);
+  const currentBounds = getWeeksBounds(0, 1);
+  const selectedBounds = getWeeksBounds(selectedWeekOffset, 1);
 
-  const multiStartDate = intl.format(multiBounds.mondayWeeksAgo);
-  const multiEndDate = intl.format(multiBounds.sundayThisWeek);
-  const multiDisplay = new Intl.DateTimeFormat("fr-FR", {
+  const multiStartDate = intl.format(multiBounds.start);
+  const multiEndDate = intl.format(multiBounds.end);
+  const formatter = new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "short",
-  }).formatRange(multiBounds.mondayWeeksAgo, multiBounds.sundayThisWeek);
+  });
 
-  const currentDisplay = new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "short",
-  }).formatRange(currentBounds.mondayWeeksAgo, currentBounds.sundayThisWeek);
+  const multiDisplay = `${formatter.format(multiBounds.start)} – ${formatter.format(multiBounds.end)}`;
+  const selectedDisplay = `${formatter.format(selectedBounds.start)} – ${formatter.format(selectedBounds.end)}`;
 
   useEffect(() => {
     const fetchActivity = async () => {
@@ -68,19 +69,25 @@ function Dashboard() {
           multiStartDate,
           multiEndDate,
         );
-        setWeeksData(groupByWeek(response));
+        setWeeksData(groupDataByWeek(multiStartDate, multiEndDate, response));
 
-        setCurrentWeek(
-          await fetchCurrentWeekOffset(auth.token!, currentOffset),
+        setCurrentWeek(await fetchCurrentWeekOffset(auth.token!, 0));
+
+        setSelectedWeek(
+          await fetchCurrentWeekOffset(auth.token!, selectedWeekOffset),
         );
-
-        console.log(weeksData);
       } catch (err) {
         alert("Erreur de connexion : " + err);
       }
     };
     fetchActivity();
-  }, [auth.token, multiWeekBaseOffset, currentOffset]);
+  }, [
+    auth.token,
+    multiStartDate,
+    multiEndDate,
+    multiWeekBaseOffset,
+    selectedWeekOffset,
+  ]);
 
   const COLORS = ["#0B23F4", "#B6BDFC"];
   const GoalPie = (props: PieSectorShapeProps) => {
@@ -146,7 +153,7 @@ function Dashboard() {
       <div className="w-75 mx-auto">
         <h2 className="mb-4">Vos dernières performances</h2>
         <div className="d-flex flex-row gap-5">
-          <div className="card border-0 py-4 px-5 w-30 d-flex flex-column gap-5">
+          <div className="card border-0 py-4 w-45 px-5 d-flex flex-column gap-5">
             <div className="d-flex flex-row justify-content-between align-items-start">
               <div>
                 <div className="text-blue fs-4">
@@ -163,11 +170,11 @@ function Dashboard() {
               <DateSelector
                 dates={multiDisplay}
                 onPrev={() =>
-                  setMultiWeekBaseOffset((offset: number) => offset + 1)
+                  setMultiWeekBaseOffset((offset: number) => offset + 4)
                 }
                 onNext={() =>
                   setMultiWeekBaseOffset((offset: number) =>
-                    Math.max(0, offset - 1),
+                    Math.max(0, offset - 4),
                   )
                 }
               />
@@ -177,7 +184,7 @@ function Dashboard() {
                 <BarChart responsive data={weeksData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis tickFormatter={(index) => `S${index + 1}`} />
-                  <YAxis dataKey="distance" width="auto" />
+                  <YAxis dataKey="distance" width={20} />
                   <Tooltip cursor={false} content={WeeklyTooltip} />
                   <Legend />
                   <Bar
@@ -193,35 +200,36 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="card border-0 py-4 px-5 d-flex flex-column gap-5 flex-grow-1">
+          <div className="card border-0 w-50 py-4 px-5 d-flex flex-column gap-5 flex-grow-1">
             <div className="d-flex flex-row justify-content-between align-items-start">
               <div>
-                <div className="text-red fs-4">
-                  {Number(
-                    (
-                      currentWeek.reduce(
-                        (sum, item) => sum + item.heartRate.average,
-                        0,
-                      ) /
-                      currentWeek.filter((item) => item.caloriesBurned > 0)
-                        .length
-                    ).toFixed(2),
-                  )}{" "}
-                  BPM
+                <div className="text-red lh-sm fs-4">
+                  {selectedWeek.find((item) => item.caloriesBurned > 0)
+                    ? Number(
+                        (
+                          selectedWeek.reduce(
+                            (sum, item) => sum + item.heartRate.average,
+                            0,
+                          ) /
+                          selectedWeek.filter((item) => item.caloriesBurned > 0)
+                            .length
+                        ).toFixed(2),
+                      ) + " BPM"
+                    : "Pas de donnés pour la semaine selectionnée"}{" "}
                 </div>
                 Fréquence cardiaque moyenne
               </div>
               <DateSelector
-                dates={currentDisplay}
-                onPrev={() => setCurrentOffset((offset) => offset + 1)}
+                dates={selectedDisplay}
+                onPrev={() => setSelectedWeekOffset((offset) => offset + 1)}
                 onNext={() =>
-                  setCurrentOffset((offset) => Math.max(0, offset - 1))
+                  setSelectedWeekOffset((offset) => Math.max(0, offset - 1))
                 }
               />
             </div>
             <div className="w-100">
               <ResponsiveContainer width="100%" height={400}>
-                <ComposedChart className="btm-chart" data={currentWeek}>
+                <ComposedChart className="btm-chart" data={selectedWeek}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis />
                   <YAxis domain={[130, 190]} />
@@ -241,6 +249,7 @@ function Dashboard() {
                     name="Max BPM"
                   />
                   <Line
+                    isAnimationActive={false}
                     name="Moyenne"
                     type="monotone"
                     dataKey="heartRate.average"
@@ -258,8 +267,8 @@ function Dashboard() {
       <div className="w-75 mx-auto">
         <h2>Cette semaine</h2>
         <h5>
-          Du {currentBounds.mondayWeeksAgo.toLocaleDateString()} au{" "}
-          {currentBounds.sundayThisWeek.toLocaleDateString()}
+          Du {currentBounds.start.toLocaleDateString()} au{" "}
+          {currentBounds.end.toLocaleDateString()}
         </h5>
         <div className="d-flex flex-row gap-5 mt-4">
           <div className="card border-0 py-4 px-5 w-45 d-flex flex-column">
@@ -295,27 +304,41 @@ function Dashboard() {
             <div className="border-0 card py-4 px-5">
               <p>Durée d'activité</p>
               <p className="mb-0 fs-4 text-pale-blue">
-                <span className="text-blue fw-bold fs-2">
-                  {currentWeek.reduce((sum, item) => sum + item.duration, 0) /
-                    currentWeek.length || 1}{" "}
-                </span>
-                minutes
+                {currentWeek.find((item) => item.duration > 0) ? (
+                  <>
+                    <span className="text-blue fw-bold fs-2">
+                      {currentWeek.reduce(
+                        (sum, item) => sum + item.duration,
+                        0,
+                      ) / currentWeek.length || 1}{" "}
+                    </span>
+                    minutes
+                  </>
+                ) : (
+                  <>Pas de données pour cette semaine</>
+                )}
               </p>
             </div>
             <div className="border-0 card py-4 px-5">
               <p>Distance</p>
               <p className="mb-0 fs-4 text-pale-red">
-                <span className="text-red fw-bold fs-2">
-                  {Number(
-                    (
-                      currentWeek.reduce(
-                        (sum, item) => sum + item.distance,
-                        0,
-                      ) / currentWeek.length || 1
-                    ).toFixed(2),
-                  )}{" "}
-                </span>
-                kilomètres
+                {currentWeek.find((item) => item.distance > 0) ? (
+                  <>
+                    <span className="text-red fw-bold fs-2">
+                      {Number(
+                        (
+                          currentWeek.reduce(
+                            (sum, item) => sum + item.distance,
+                            0,
+                          ) / currentWeek.length
+                        ).toFixed(2),
+                      )}{" "}
+                    </span>
+                    kilomètres{" "}
+                  </>
+                ) : (
+                  <>Pas de données pour cette semaine</>
+                )}
               </p>
             </div>
           </div>

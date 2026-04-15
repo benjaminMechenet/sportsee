@@ -7,6 +7,14 @@ body {
   width: 45%;
 }
 
+.w-200 {
+  width: 200px;
+}
+
+.w-30 {
+  width: 30%;
+}
+
 .px-10 {
   padding-left: 10%;
   padding-right: 10%;
@@ -91,4 +99,8 @@ a:hover {
     rgba(255, 255, 255, 1) 0%,
     rgba(255, 255, 255, 0) 100%
   ) !important;
+}
+
+.btn-primary {
+  border: 2px #0b23f4 solid;
 }
