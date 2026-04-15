@@ -61,33 +61,90 @@ function Dashboard() {
   const multiDisplay = `${formatter.format(multiBounds.start)} – ${formatter.format(multiBounds.end)}`;
   const selectedDisplay = `${formatter.format(selectedBounds.start)} – ${formatter.format(selectedBounds.end)}`;
 
+  const avgWeeksDistance =
+    weeksData.length > 0
+      ? (
+          weeksData.reduce((sum, i) => sum + i.distance, 0) / weeksData.length
+        ).toFixed(2)
+      : null;
+
+  const selectedAvgHeartRate = (() => {
+    const valid = selectedWeek.filter((i) => i.caloriesBurned > 0);
+    if (!valid.length) return null;
+
+    return (
+      (
+        valid.reduce((sum, i) => sum + i.heartRate.average, 0) / valid.length
+      ).toFixed(2) + " BPM"
+    );
+  })();
+
+  const currentDurationAvg =
+    currentWeek.length > 0
+      ? (
+          currentWeek.reduce((s, i) => s + i.duration, 0) / currentWeek.length
+        ).toFixed(2)
+      : null;
+
+  const currentDistanceAvg =
+    currentWeek.length > 0
+      ? (
+          currentWeek.reduce((s, i) => s + i.distance, 0) / currentWeek.length
+        ).toFixed(2)
+      : null;
+
   useEffect(() => {
-    const fetchActivity = async () => {
+    if (!auth.token) return;
+
+    const fetchWeeks = async () => {
       try {
         const response = await getUserActivity(
           auth.token!,
           multiStartDate,
           multiEndDate,
         );
+
         setWeeksData(groupDataByWeek(multiStartDate, multiEndDate, response));
-
-        setCurrentWeek(await fetchCurrentWeekOffset(auth.token!, 0));
-
-        setSelectedWeek(
-          await fetchCurrentWeekOffset(auth.token!, selectedWeekOffset),
-        );
       } catch (err) {
         alert("Erreur de connexion : " + err);
       }
     };
-    fetchActivity();
-  }, [
-    auth.token,
-    multiStartDate,
-    multiEndDate,
-    multiWeekBaseOffset,
-    selectedWeekOffset,
-  ]);
+
+    fetchWeeks();
+  }, [auth.token, multiStartDate, multiEndDate]);
+
+  useEffect(() => {
+    if (!auth.token) return;
+
+    const fetchCurrent = async () => {
+      try {
+        const data = await fetchCurrentWeekOffset(auth.token!, 0);
+        setCurrentWeek(data);
+      } catch (err) {
+        alert("Erreur de connexion : " + err);
+      }
+    };
+
+    fetchCurrent();
+  }, [auth.token]);
+
+  useEffect(() => {
+    if (!auth.token) return;
+
+    const fetchSelected = async () => {
+      try {
+        const data = await fetchCurrentWeekOffset(
+          auth.token!,
+          selectedWeekOffset,
+        );
+        setSelectedWeek(data);
+      } catch (err) {
+        alert("Erreur de connexion : " + err);
+      }
+    };
+
+    fetchSelected();
+  }, [auth.token, selectedWeekOffset]);
 
   const COLORS = ["#0B23F4", "#B6BDFC"];
   const GoalPie = (props: PieSectorShapeProps) => {
@@ -157,12 +214,7 @@ function Dashboard() {
             <div className="d-flex flex-row justify-content-between align-items-start">
               <div>
                 <div className="text-blue fs-4">
-                  {Number(
-                    (
-                      weeksData.reduce((sum, item) => sum + item.distance, 0) /
-                      weeksData.length
-                    ).toFixed(2),
-                  )}
+                  {avgWeeksDistance ?? 0}
                   km en moyenne
                 </div>
                 Total des kilomètres 4 dernières semaines
@@ -204,18 +256,8 @@ function Dashboard() {
             <div className="d-flex flex-row justify-content-between align-items-start">
               <div>
                 <div className="text-red lh-sm fs-4">
-                  {selectedWeek.find((item) => item.caloriesBurned > 0)
-                    ? Number(
-                        (
-                          selectedWeek.reduce(
-                            (sum, item) => sum + item.heartRate.average,
-                            0,
-                          ) /
-                          selectedWeek.filter((item) => item.caloriesBurned > 0)
-                            .length
-                        ).toFixed(2),
-                      ) + " BPM"
-                    : "Pas de donnés pour la semaine selectionnée"}{" "}
+                  {selectedAvgHeartRate ??
+                    "Pas de donnés pour la semaine selectionnée"}{" "}
                 </div>
                 Fréquence cardiaque moyenne
               </div>
@@ -232,7 +274,7 @@ function Dashboard() {
                 <ComposedChart className="btm-chart" data={selectedWeek}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis />
-                  <YAxis domain={[130, 190]} />
+                  <YAxis width={30} domain={[130, 190]} />
                   <Legend />
                   <Bar
                     dataKey="heartRate.min"
@@ -304,13 +346,10 @@ function Dashboard() {
             <div className="border-0 card py-4 px-5">
               <p>Durée d'activité</p>
               <p className="mb-0 fs-4 text-pale-blue">
-                {currentWeek.find((item) => item.duration > 0) ? (
+                {currentDurationAvg === "0" ? (
                   <>
                     <span className="text-blue fw-bold fs-2">
-                      {currentWeek.reduce(
-                        (sum, item) => sum + item.duration,
-                        0,
-                      ) / currentWeek.length || 1}{" "}
+                      {currentDurationAvg}{" "}
                     </span>
                     minutes
                   </>
@@ -322,17 +361,10 @@ function Dashboard() {
             <div className="border-0 card py-4 px-5">
               <p>Distance</p>
               <p className="mb-0 fs-4 text-pale-red">
-                {currentWeek.find((item) => item.distance > 0) ? (
+                {currentDistanceAvg === "0" ? (
                   <>
                     <span className="text-red fw-bold fs-2">
-                      {Number(
-                        (
-                          currentWeek.reduce(
-                            (sum, item) => sum + item.distance,
-                            0,
-                          ) / currentWeek.length
-                        ).toFixed(2),
-                      )}{" "}
+                      {currentDistanceAvg}{" "}
                     </span>
                     kilomètres{" "}
                   </>

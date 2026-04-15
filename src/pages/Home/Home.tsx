@@ -7,7 +7,6 @@ import {
 } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 import { useUser } from "../../context/UserContext";
-import "./Home.css";
 
 function Home() {
   const [email, setEmail] = useState("");

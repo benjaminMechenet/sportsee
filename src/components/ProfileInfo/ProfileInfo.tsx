@@ -1,6 +1,5 @@
 import { useUser } from "../../context/UserContext";
 import { formatFrenchDate } from "../../utils/utils";
-import "./ProfileInfo.css";
 
 function ProfileInfo() {
   const { user } = useUser();
